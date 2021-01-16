@@ -5,6 +5,7 @@ from tasks.gridworld import Shapes
 from training.sfql import SFQL 
 from training.ql import TabularQ 
 
+# task layout
 maze = np.array([
     ['1', ' ', ' ', ' ', ' ', '2', 'X', '2', ' ', ' ', ' ', ' ', 'G'],
     [' ', ' ', ' ', ' ', ' ', ' ', 'X', ' ', ' ', ' ', ' ', ' ', ' '],
@@ -21,13 +22,14 @@ maze = np.array([
     ['_', ' ', ' ', ' ', ' ', ' ', 'X', '3', ' ', ' ', ' ', ' ', '1']
 ])
 
-# agents
+# training params for the SF
 sf_params = {
-    'alpha': 0.3,
+    'alpha': 0.5,
     'alpha_w': 0.5,
     'use_true_reward': False
 }
 
+# training params for SFQL
 params = {
     'gamma': 0.95,
     'epsilon': 0.15,
@@ -38,20 +40,29 @@ params = {
     'encoding': lambda s: s
 }
 
-sfql = SFQL(TabularSF(**sf_params), **params)
-q = TabularQ(alpha=0.5, **params)
+# training params for Q
+params_q = {
+    'alpha': 0.5
+}
 
-# main loop
+# training params for the overall experiment
+n_trials = 20
+
+# agents
+sfql = SFQL(TabularSF(**sf_params), **params)
+q = TabularQ(**params_q, **params)
+
+# train
 avg_data_sfql, cum_data_sfql = 0., 0.
 avg_data_q, cum_data_q = 0., 0.
-trials = 10
 
-for _ in range(trials):
+for _ in range(n_trials):
     
-    # next trial
+    # prepare for the next trial
     sfql.reset()
     q.reset()
     
+    # next trial
     for _ in range(20):
         
         # define new task
@@ -70,21 +81,30 @@ for _ in range(trials):
         for _ in range(20000):
             q.next_sample()
     
-    avg_data_sfql = avg_data_sfql + np.array(sfql.cum_reward_hist) / float(trials)
-    cum_data_sfql = cum_data_sfql + np.cumsum(sfql.cum_reward_hist) / float(trials)
-    avg_data_q = avg_data_q + np.array(q.cum_reward_hist) / float(trials)
-    cum_data_q = cum_data_q + np.cumsum(q.cum_reward_hist) / float(trials)
+    # update performance statistics
+    avg_data_sfql = avg_data_sfql + np.array(sfql.cum_reward_hist) / float(n_trials)
+    cum_data_sfql = cum_data_sfql + np.cumsum(sfql.cum_reward_hist) / float(n_trials)
+    avg_data_q = avg_data_q + np.array(q.cum_reward_hist) / float(n_trials)
+    cum_data_q = cum_data_q + np.cumsum(q.cum_reward_hist) / float(n_trials)
 
+# plot the cumulative return per trial, averaged 
 import matplotlib.pyplot as plt
-plt.plot(avg_data_sfql, label='sfql')
-plt.plot(avg_data_q, label='q')
+plt.plot(avg_data_sfql, label='SFQL')
+plt.plot(avg_data_q, label='Q')
+plt.xlabel('samples')
+plt.ylabel('cumulative reward')
 plt.legend()
-plt.title('Per-Trial Cumulative Training Return')
+plt.title('Cumulative Training Reward Per Trial')
+plt.savefig('figures/cumulative_return_per_trial.png')
 plt.show()
 
+# plot the gross cumulative return, averaged
 plt.clf()
-plt.plot(cum_data_sfql, label='sfql')
-plt.plot(cum_data_q, label='q')
+plt.plot(cum_data_sfql, label='SFQL')
+plt.plot(cum_data_q, label='Q')
+plt.xlabel('samples')
+plt.ylabel('cumulative reward')
 plt.legend()
 plt.title('Total Cumulative Training Return')
+plt.savefig('figures/cumulative_return_total.png')
 plt.show()

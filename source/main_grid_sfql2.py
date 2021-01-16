@@ -7,36 +7,13 @@ from tensorflow.keras import layers, Model, optimizers, backend as K
 
 tf.compat.v1.disable_eager_execution()
 
+from rbf import RBFLayer
 from successors.deep import DeepSF
 from tasks.gridworld import Shapes
 from training.sfql import SFQL  
 from training.ql import TabularQ
-
-
-class RBFLayer(layers.Layer):
-
-    def __init__(self, units, gamma, **kwargs):
-        super(RBFLayer, self).__init__(**kwargs)
-        self.units = units
-        self.gamma = K.cast_to_floatx(gamma)
-
-    def build(self, input_shape):
-        self.mu = self.add_weight(name='mu',
-                                  shape=(int(input_shape[1]), self.units),
-                                  initializer='uniform',
-                                  trainable=True)
-        super(RBFLayer, self).build(input_shape)
-
-    def call(self, inputs):
-        diff = K.expand_dims(inputs) - self.mu
-        l2 = K.sum(K.pow(diff, 2), axis=1)
-        res = K.exp(-self.gamma * l2)
-        return res
-
-    def compute_output_shape(self, input_shape):
-        return (input_shape[0], self.units)
-
     
+# task layout
 maze = np.array([
     ['1', ' ', ' ', ' ', ' ', '2', 'X', '2', ' ', ' ', ' ', ' ', 'G'],
     [' ', ' ', ' ', ' ', ' ', ' ', 'X', ' ', ' ', ' ', ' ', ' ', ' '],
@@ -53,12 +30,13 @@ maze = np.array([
     ['_', ' ', ' ', ' ', ' ', ' ', 'X', '3', ' ', ' ', ' ', ' ', '1']
 ])
 
-# agents
+# training params for the SF
 sf_params = {
     'alpha_w': 0.5,
     'use_true_reward': False
 }
 
+# training params for SFQL
 params = {
     'gamma': 0.95,
     'epsilon': 0.15,
@@ -69,11 +47,14 @@ params = {
     'encoding': 'task'
 }
 
+# training params for experiment
+n_samples = 20000
+n_trials = 10
 
+
+# keras model for the SF
 def model_lambda(x):
-    # y = layers.Dense(100, activation='relu')(x)
-    y = RBFLayer(100, 0.5)(x)
-    # y = layers.Dense(32, activation='relu')(y)
+    y = RBFLayer(36, 0.5)(x)
     y = layers.Dense(4 * 4)(y)
     y = layers.Reshape((4, 4))(y)
     model = Model(inputs=x, outputs=y)
@@ -81,22 +62,24 @@ def model_lambda(x):
     return model
 
 
+# build agents
 sf = DeepSF(keras_model_handle=model_lambda, **sf_params)
 sfql = SFQL(sf, **params)
 q = TabularQ(alpha=0.5, **params)
 
-# main loop
+# train
 avg_data_sfql, cum_data_sfql = 0., 0.
 avg_data_q, cum_data_q = 0., 0.
-trials = 1
 
-for _ in range(trials):
+for _ in range(n_trials):
     
-    # next trial
+    # prepare for next trial
     sfql.reset()
     q.reset()
-    
-    for _ in range(20):
+    K.clear_session()
+       
+    # next trial
+    for _ in range(10):
         
         # define new task
         rewards = dict(zip(['1', '2', '3'], list(np.random.uniform(low=-1.0, high=1.0, size=3))))
@@ -105,20 +88,22 @@ for _ in range(trials):
         # solve the task with sfql
         print('\nsolving with SFQL')
         sfql.next_task(task)
-        for _ in range(20000):
+        for _ in range(n_samples):
             sfql.next_sample()
         
         # solve the same task with q
         print('\nsolving with QL')
         q.next_task(task)
-        for _ in range(20000):
+        for _ in range(n_samples):
             q.next_sample()
     
-    avg_data_sfql = avg_data_sfql + np.array(sfql.cum_reward_hist) / float(trials)
-    cum_data_sfql = cum_data_sfql + np.cumsum(sfql.cum_reward_hist) / float(trials)
-    avg_data_q = avg_data_q + np.array(q.cum_reward_hist) / float(trials)
-    cum_data_q = cum_data_q + np.cumsum(q.cum_reward_hist) / float(trials)
+    # update performance statistics
+    avg_data_sfql = avg_data_sfql + np.array(sfql.cum_reward_hist) / float(n_trials)
+    cum_data_sfql = cum_data_sfql + np.cumsum(sfql.cum_reward_hist) / float(n_trials)
+    avg_data_q = avg_data_q + np.array(q.cum_reward_hist) / float(n_trials)
+    cum_data_q = cum_data_q + np.cumsum(q.cum_reward_hist) / float(n_trials)
 
+# plot the cumulative return per trial, averaged 
 import matplotlib.pyplot as plt
 plt.plot(avg_data_sfql, label='sfql')
 plt.plot(avg_data_q, label='q')
@@ -126,6 +111,7 @@ plt.legend()
 plt.title('Per-Trial Cumulative Training Return')
 plt.show()
 
+# plot the gross cumulative return, averaged
 plt.clf()
 plt.plot(cum_data_sfql, label='sfql')
 plt.plot(cum_data_q, label='q')

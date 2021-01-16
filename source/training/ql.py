@@ -98,12 +98,13 @@ class Q:
         
 class TabularQ(Q):
     
-    def __init__(self, alpha, *args, **kwargs):
+    def __init__(self, alpha, *args, noise_init=lambda size: np.random.uniform(low=-0.01, high=0.01, size=size), **kwargs):
         super(TabularQ, self).__init__(*args, **kwargs)
         self.alpha = alpha
+        self.noise_init = noise_init
     
     def _reset_q(self):
-        self.Q = defaultdict(lambda: np.random.uniform(low=-0.01, high=0.01, size=(self.n_actions,)))
+        self.Q = defaultdict(lambda: self.noise_init((self.n_actions,)))
     
     def _get_q(self, state):
         return self.Q[state]

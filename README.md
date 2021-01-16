@@ -1,5 +1,5 @@
 # successor-features-for-transfer
-A reusable framework for successor features (SF) for transfer in deep reinforcement learning using keras.
+A reusable framework for successor features (SF) for transfer in (deep) reinforcement learning using keras, and based on [1].
 
 Currently supports:
 - tabular SF representations for discrete environments, based on an efficient hash table representation

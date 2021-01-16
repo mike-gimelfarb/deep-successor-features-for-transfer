@@ -89,6 +89,7 @@ for _ in range(n_trials):
 
 # plot the cumulative return per trial, averaged 
 import matplotlib.pyplot as plt
+plt.figure(figsize=(10, 5))
 plt.plot(avg_data_sfql, label='SFQL')
 plt.plot(avg_data_q, label='Q')
 plt.xlabel('samples')
@@ -100,6 +101,7 @@ plt.show()
 
 # plot the gross cumulative return, averaged
 plt.clf()
+plt.figure(figsize=(10, 10))
 plt.plot(cum_data_sfql, label='SFQL')
 plt.plot(cum_data_q, label='Q')
 plt.xlabel('samples')

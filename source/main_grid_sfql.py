@@ -101,7 +101,7 @@ plt.show()
 
 # plot the gross cumulative return, averaged
 plt.clf()
-plt.figure(figsize=(10, 10))
+plt.figure(figsize=(5, 5))
 plt.plot(cum_data_sfql, label='SFQL')
 plt.plot(cum_data_q, label='Q')
 plt.xlabel('samples')

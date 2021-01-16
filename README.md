@@ -1,6 +1,8 @@
 # successor-features-for-transfer
 A reusable framework for successor features (SF) for transfer in (deep) reinforcement learning using keras, and based on [1].
 
+![](https://github.com/mike-gimelfarb/successor-features-for-transfer/blob/main/source/figures/cumulative_return_total.png?raw=True)
+
 Currently supports:
 - tabular SF representations for discrete environments, based on an efficient hash table representation
 - deep neural network SF representations for large or continuous-state environments, based on keras; allows existing keras models or custom architectures (e.g. CNNs) as inputs for easy training and tuning

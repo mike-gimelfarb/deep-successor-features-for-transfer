@@ -15,12 +15,12 @@ from training.ql import TabularQ
     
 # task layout
 maze = np.array([
-    ['1', ' ', ' ', ' ', ' ', '2', 'X', '2', ' ', ' ', ' ', ' ', 'G'],
+    ['1', ' ', ' ', ' ', ' ', '2', 'X', ' ', ' ', ' ', ' ', ' ', 'G'],
     [' ', ' ', ' ', ' ', ' ', ' ', 'X', ' ', ' ', ' ', ' ', ' ', ' '],
     [' ', ' ', ' ', ' ', ' ', ' ', '1', ' ', ' ', ' ', ' ', ' ', ' '],
     [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
     [' ', ' ', ' ', ' ', ' ', ' ', 'X', ' ', ' ', ' ', ' ', ' ', ' '],
-    ['2', ' ', ' ', ' ', ' ', '3', 'X', '1', ' ', ' ', ' ', ' ', '3'],
+    ['2', ' ', ' ', ' ', ' ', '3', 'X', ' ', ' ', ' ', ' ', ' ', ' '],
     ['X', 'X', '3', ' ', 'X', 'X', 'X', 'X', 'X', ' ', '1', 'X', 'X'],
     [' ', ' ', ' ', ' ', ' ', ' ', 'X', '2', ' ', ' ', ' ', ' ', '3'],
     [' ', ' ', ' ', ' ', ' ', ' ', 'X', ' ', ' ', ' ', ' ', ' ', ' '],
@@ -49,12 +49,13 @@ params = {
 
 # training params for experiment
 n_samples = 20000
+n_tasks = 20
 n_trials = 10
 
 
 # keras model for the SF
 def model_lambda(x):
-    y = RBFLayer(36, 0.5)(x)
+    y = RBFLayer(100, 0.5)(x)
     y = layers.Dense(4 * 4)(y)
     y = layers.Reshape((4, 4))(y)
     model = Model(inputs=x, outputs=y)
@@ -79,7 +80,7 @@ for _ in range(n_trials):
     K.clear_session()
        
     # next trial
-    for _ in range(10):
+    for _ in range(n_tasks):
         
         # define new task
         rewards = dict(zip(['1', '2', '3'], list(np.random.uniform(low=-1.0, high=1.0, size=3))))
@@ -105,16 +106,20 @@ for _ in range(n_trials):
 
 # plot the cumulative return per trial, averaged 
 import matplotlib.pyplot as plt
+plt.figure(figsize=(10, 5))
 plt.plot(avg_data_sfql, label='sfql')
 plt.plot(avg_data_q, label='q')
 plt.legend()
-plt.title('Per-Trial Cumulative Training Return')
+plt.title('Cumulative Training Reward Per Task')
+plt.savefig('figures/deep_gridworld_cumulative_return_per_task.png')
 plt.show()
 
 # plot the gross cumulative return, averaged
 plt.clf()
+plt.figure(figsize=(5, 5))
 plt.plot(cum_data_sfql, label='sfql')
 plt.plot(cum_data_q, label='q')
 plt.legend()
-plt.title('Total Cumulative Training Return')
+plt.title('Total Cumulative Training Reward')
+plt.savefig('figures/deep_gridworld_cumulative_return_total.png')
 plt.show()

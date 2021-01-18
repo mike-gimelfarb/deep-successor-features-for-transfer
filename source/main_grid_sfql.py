@@ -7,12 +7,12 @@ from training.ql import TabularQ
 
 # task layout
 maze = np.array([
-    ['1', ' ', ' ', ' ', ' ', '2', 'X', '2', ' ', ' ', ' ', ' ', 'G'],
+    ['1', ' ', ' ', ' ', ' ', '2', 'X', ' ', ' ', ' ', ' ', ' ', 'G'],
     [' ', ' ', ' ', ' ', ' ', ' ', 'X', ' ', ' ', ' ', ' ', ' ', ' '],
     [' ', ' ', ' ', ' ', ' ', ' ', '1', ' ', ' ', ' ', ' ', ' ', ' '],
     [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
     [' ', ' ', ' ', ' ', ' ', ' ', 'X', ' ', ' ', ' ', ' ', ' ', ' '],
-    ['2', ' ', ' ', ' ', ' ', '3', 'X', '1', ' ', ' ', ' ', ' ', '3'],
+    ['2', ' ', ' ', ' ', ' ', '3', 'X', ' ', ' ', ' ', ' ', ' ', ' '],
     ['X', 'X', '3', ' ', 'X', 'X', 'X', 'X', 'X', ' ', '1', 'X', 'X'],
     [' ', ' ', ' ', ' ', ' ', ' ', 'X', '2', ' ', ' ', ' ', ' ', '3'],
     [' ', ' ', ' ', ' ', ' ', ' ', 'X', ' ', ' ', ' ', ' ', ' ', ' '],
@@ -46,6 +46,8 @@ params_q = {
 }
 
 # training params for the overall experiment
+n_samples = 20000
+n_tasks = 20
 n_trials = 20
 
 # agents
@@ -63,7 +65,7 @@ for _ in range(n_trials):
     q.reset()
     
     # next trial
-    for _ in range(20):
+    for _ in range(n_tasks):
         
         # define new task
         rewards = dict(zip(['1', '2', '3'], list(np.random.uniform(low=-1.0, high=1.0, size=3))))
@@ -72,13 +74,13 @@ for _ in range(n_trials):
         # solve the task with sfql
         print('\nsolving with SFQL')
         sfql.next_task(task)
-        for _ in range(20000):
+        for _ in range(n_samples):
             sfql.next_sample()
         
         # solve the same task with q
         print('\nsolving with QL')
         q.next_task(task)
-        for _ in range(20000):
+        for _ in range(n_samples):
             q.next_sample()
     
     # update performance statistics
@@ -95,8 +97,8 @@ plt.plot(avg_data_q, label='Q')
 plt.xlabel('samples')
 plt.ylabel('cumulative reward')
 plt.legend()
-plt.title('Cumulative Training Reward Per Trial')
-plt.savefig('figures/cumulative_return_per_trial.png')
+plt.title('Cumulative Training Reward Per Task')
+plt.savefig('figures/tabular_gridworld_cumulative_return_per_tasl.png')
 plt.show()
 
 # plot the gross cumulative return, averaged
@@ -107,6 +109,6 @@ plt.plot(cum_data_q, label='Q')
 plt.xlabel('samples')
 plt.ylabel('cumulative reward')
 plt.legend()
-plt.title('Total Cumulative Training Return')
-plt.savefig('figures/cumulative_return_total.png')
+plt.title('Total Cumulative Training Reward')
+plt.savefig('figures/tabular_gridworld_cumulative_return_total.png')
 plt.show()

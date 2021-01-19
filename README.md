@@ -1,5 +1,5 @@
 # successor-features-for-transfer
-A reusable framework for successor features (SF) for transfer in (deep) reinforcement learning using keras, and based on [1].
+A reusable framework and independent implementation for successor features (SF) for transfer in (deep) reinforcement learning using keras, based on [1].
 
 ![](https://github.com/mike-gimelfarb/successor-features-for-transfer/blob/main/source/figures/cumulative_return_total.png)
 

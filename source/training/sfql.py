@@ -4,7 +4,7 @@ import random
         
 class SFQL:
     
-    def __init__(self, sf, gamma, epsilon, epsilon_decay, epsilon_min, T, encoding, print_ev=1000, use_gpi=True):
+    def __init__(self, sf, gamma, epsilon, T, encoding, epsilon_decay=1., epsilon_min=0., print_ev=1000, use_gpi=True):
         self.sf = sf
         self.gamma = gamma
         self.epsilon_init = epsilon

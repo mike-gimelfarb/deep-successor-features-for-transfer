@@ -40,8 +40,6 @@ sf_params = {
 params = {
     'gamma': 0.95,
     'epsilon': 0.15,
-    'epsilon_decay': 1.,
-    'epsilon_min': 0.15,
     'T': 200,
     'print_ev': 1000,
     'encoding': 'task'
@@ -55,7 +53,7 @@ n_trials = 10
 
 # keras model for the SF
 def model_lambda(x):
-    y = RBFLayer(100, 0.5)(x)
+    y = RBFLayer(100, 0.1)(x)
     y = layers.Dense(4 * 4)(y)
     y = layers.Reshape((4, 4))(y)
     model = Model(inputs=x, outputs=y)
@@ -111,7 +109,7 @@ plt.plot(avg_data_sfql, label='sfql')
 plt.plot(avg_data_q, label='q')
 plt.legend()
 plt.title('Cumulative Training Reward Per Task')
-plt.savefig('figures/deep_gridworld_cumulative_return_per_task.png')
+plt.savefig('figures/sfql_deep_gridworld_cumulative_return_per_task.png')
 plt.show()
 
 # plot the gross cumulative return, averaged
@@ -121,5 +119,5 @@ plt.plot(cum_data_sfql, label='sfql')
 plt.plot(cum_data_q, label='q')
 plt.legend()
 plt.title('Total Cumulative Training Reward')
-plt.savefig('figures/deep_gridworld_cumulative_return_total.png')
+plt.savefig('figures/sfql_deep_gridworld_cumulative_return_total.png')
 plt.show()

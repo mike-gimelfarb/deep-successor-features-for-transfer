@@ -33,8 +33,6 @@ sf_params = {
 params = {
     'gamma': 0.95,
     'epsilon': 0.15,
-    'epsilon_decay': 1.0,
-    'epsilon_min': 0.15,
     'T': 200,
     'print_ev': 1000,
     'encoding': lambda s: s
@@ -51,17 +49,20 @@ n_tasks = 20
 n_trials = 20
 
 # agents
-sfql = SFQL(TabularSF(**sf_params), **params)
+sfql = SFQL(TabularSF(**sf_params), use_gpi=True, **params)
+sf = SFQL(TabularSF(**sf_params), use_gpi=False, **params)
 q = TabularQ(**params_q, **params)
 
 # train
 avg_data_sfql, cum_data_sfql = 0., 0.
+avg_data_sf, cum_data_sf = 0., 0.
 avg_data_q, cum_data_q = 0., 0.
 
 for _ in range(n_trials):
     
     # prepare for the next trial
     sfql.reset()
+    sf.reset()
     q.reset()
     
     # next trial
@@ -77,6 +78,12 @@ for _ in range(n_trials):
         for _ in range(n_samples):
             sfql.next_sample()
         
+        # solve the task with sf
+        print('\nsolving with SF')
+        sf.next_task(task)
+        for _ in range(n_samples):
+            sf.next_sample()
+        
         # solve the same task with q
         print('\nsolving with QL')
         q.next_task(task)
@@ -86,29 +93,33 @@ for _ in range(n_trials):
     # update performance statistics
     avg_data_sfql = avg_data_sfql + np.array(sfql.cum_reward_hist) / float(n_trials)
     cum_data_sfql = cum_data_sfql + np.cumsum(sfql.cum_reward_hist) / float(n_trials)
+    avg_data_sf = avg_data_sf + np.array(sf.cum_reward_hist) / float(n_trials)
+    cum_data_sf = cum_data_sf + np.cumsum(sf.cum_reward_hist) / float(n_trials)
     avg_data_q = avg_data_q + np.array(q.cum_reward_hist) / float(n_trials)
     cum_data_q = cum_data_q + np.cumsum(q.cum_reward_hist) / float(n_trials)
 
 # plot the cumulative return per trial, averaged 
 import matplotlib.pyplot as plt
 plt.figure(figsize=(10, 5))
-plt.plot(avg_data_sfql, label='SFQL')
+plt.plot(avg_data_sfql, label='SF+GPI')
+plt.plot(avg_data_sf, label='SF')
 plt.plot(avg_data_q, label='Q')
 plt.xlabel('samples')
 plt.ylabel('cumulative reward')
 plt.legend()
 plt.title('Cumulative Training Reward Per Task')
-plt.savefig('figures/tabular_gridworld_cumulative_return_per_tasl.png')
+plt.savefig('figures/sfql_tabular_gridworld_cumulative_return_per_task.png')
 plt.show()
 
 # plot the gross cumulative return, averaged
 plt.clf()
 plt.figure(figsize=(5, 5))
-plt.plot(cum_data_sfql, label='SFQL')
+plt.plot(cum_data_sfql, label='SF+GPI')
+plt.plot(cum_data_sf, label='SF')
 plt.plot(cum_data_q, label='Q')
 plt.xlabel('samples')
 plt.ylabel('cumulative reward')
 plt.legend()
 plt.title('Total Cumulative Training Reward')
-plt.savefig('figures/tabular_gridworld_cumulative_return_total.png')
+plt.savefig('figures/sfql_tabular_gridworld_cumulative_return_total.png')
 plt.show()

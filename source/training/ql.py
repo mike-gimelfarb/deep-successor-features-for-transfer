@@ -5,7 +5,7 @@ import random
 
 class Q:
     
-    def __init__(self, gamma, epsilon, epsilon_decay, epsilon_min, T, encoding, print_ev=1000):
+    def __init__(self, gamma, epsilon, T, encoding, epsilon_decay=1., epsilon_min=0., print_ev=1000):
         self.gamma = gamma
         self.epsilon = epsilon
         self.epsilon_decay = epsilon_decay

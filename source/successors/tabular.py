@@ -6,8 +6,22 @@ from successors.successor import SF
 
 
 class TabularSF(SF):
+    """
+    A successor feature representation implemented using lookup tables. Storage is lazy and implemented efficiently
+    using defaultdict.
+    """
     
     def __init__(self, alpha, *args, noise_init=lambda size: np.random.uniform(-0.01, 0.01, size=size), **kwargs):
+        """
+        Creates a new tabular representation of successor features.
+        
+        Parameters
+        ----------
+        alpha : float
+            the learning rate
+        noise_init : function 
+            instruction to initialize action-values, defaults to Uniform[-0.01, 0.01]
+        """
         super(TabularSF, self).__init__(*args, **kwargs)
         self.alpha = alpha
         self.noise_init = noise_init

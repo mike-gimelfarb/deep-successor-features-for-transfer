@@ -5,20 +5,22 @@ import random
 
 class Q:
     
-    def __init__(self, gamma, epsilon, T, encoding, epsilon_decay=1., epsilon_min=0., print_ev=1000):
+    def __init__(self, gamma, epsilon, T, epsilon_decay=1., epsilon_min=0., print_ev=1000, save_ev=100, **kwargs):
         self.gamma = gamma
         self.epsilon = epsilon
         self.epsilon_decay = epsilon_decay
         self.epsilon_min = epsilon_min
         self.T = T
         self.print_ev = print_ev
+        self.save_ev = save_ev
     
     def _reset_q(self):
         raise NotImplementedError
     
     def reset(self):
         self.t = 0
-        self.cum_reward_hist = []
+        self.cum_reward = 0.
+        self.reward_hist, self.episode_reward_hist, self.cum_reward_hist = [], [], []
 
     def next_task(self, task):
         self.task = task
@@ -28,7 +30,7 @@ class Q:
         self.i = 1
         self.n_eps = 1
         self.eps = self.epsilon
-        self.task_reward = 0.
+        self.task_reward = 0.;
         self.episode_reward = 0.
         self.last_episode_reward = 0.
         self._reset_q()
@@ -79,9 +81,12 @@ class Q:
         
         # monitor performance
         self.task_reward += r
+        self.cum_reward += r
         self.episode_reward += r
-        self.cum_reward_hist.append(self.task_reward)
-        
+        if self.i % self.save_ev == 0:
+            self.reward_hist.append(self.task_reward)
+            self.cum_reward_hist.append(self.cum_reward)
+            
         # increment
         self.s = s1
         self.i += 1

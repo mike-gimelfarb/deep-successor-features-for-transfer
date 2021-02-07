@@ -5,10 +5,36 @@ from tasks.task import Task
 
 
 class Shapes(Task):
+    """
+    A discretized version of the gridworld environment introduced in [1]. Here, an agent learns to 
+    collect shapes with positive reward, while avoid those with negative reward, and then travel to a fixed goal.
+    The gridworld is split into four rooms separated by walls with passage-ways.
+    
+    References
+    ----------
+    [1] Barreto, André, et al. "Successor Features for Transfer in Reinforcement Learning." NIPS. 2017.
+    """
 
     LEFT, UP, RIGHT, DOWN = 0, 1, 2, 3
  
     def __init__(self, maze, shape_rewards):
+        """
+        Creates a new instance of the shapes environment.
+        
+        Parameters
+        ----------
+        maze : np.ndarray
+            an array of string values representing the type of each cell in the environment:
+                G indicates a goal state (terminal state)
+                _ indicates an initial state (there can be multiple, and one is selected at random
+                    at the start of each episode)
+                X indicates a barrier 
+                0, 1, .... 9 indicates the type of shape to be placed in the corresponding cell
+                entries containing other characters are treated as regular empty cells
+        shape_rewards : dict
+            a dictionary mapping the type of shape (0, 1, ... ) to a corresponding reward to provide
+            to the agent for collecting an object of that type
+        """
         self.height, self.width = maze.shape
         self.maze = maze
         self.shape_rewards = shape_rewards

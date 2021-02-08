@@ -44,3 +44,17 @@ class TabularSF(SF):
         psi = self.psi[policy_index]
         targets = phi.flatten() + gamma * psi[next_state][next_action,:] 
         psi[state][action,:] = psi[state][action,:] + self.alpha * (targets - psi[state][action,:])
+    
+    def update_successor_on_batch(self, states, actions, phis, next_states, gammas, policy_index):
+        
+        # next actions come from GPI
+        next_actions = []
+        for state in states:
+            q, _ = self.GPI(state, policy_index)
+            next_action = np.argmax(np.max(q, axis=1))
+            next_actions.append(next_action)
+        
+        # update sequentially on each example
+        for tup in zip(states, actions, phis, next_states, next_actions, gammas):
+            self.update_successor(*tup, policy_index)
+            

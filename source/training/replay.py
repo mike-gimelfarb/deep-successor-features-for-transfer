@@ -43,9 +43,7 @@ class ReplayBuffer:
         np.ndarray : batch of actions
         np.ndarray : batch of rewards
         np.ndarray : batch of next (successor) states
-        np.ndarray : batch of discount factors
-        np.ndarray : the integers 0, 1, ... n_batch - 1 (inclusive)
-        
+        np.ndarray : batch of discount factors        
         """
         if len(self.buffer) < self.n_batch: 
             return None
@@ -55,8 +53,7 @@ class ReplayBuffer:
         rewards = np.vstack(experiences[2])
         next_states = np.vstack(experiences[3])
         gammas = np.array(experiences[4])
-        indices = np.arange(self.n_batch)
-        return states, actions, rewards, next_states, gammas, indices
+        return states, actions, rewards, next_states, gammas
     
     def append(self, state, action, reward, next_state, gamma):
         """

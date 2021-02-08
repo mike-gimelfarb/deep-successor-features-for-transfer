@@ -2,14 +2,7 @@ import numpy as np
 
 
 class SF:
-    """
-    An abstract class representing a successor feature representation, implemented
-    according to [1].
     
-    References
-    ----------
-    [1] Barreto, André, et al. "Successor Features for Transfer in Reinforcement Learning." NIPS. 2017.
-    """
     
     def __init__(self, alpha_w, use_true_reward=False):
         """
@@ -101,8 +94,32 @@ class SF:
             the state features
         next_state : object
             the next state of the MDP
+        next_action : integer
+            the action taken in the next_state
         gamma : float
             the discount factor
+        policy_index : integer
+            the index of the task whose successor features to update
+        """
+        raise NotImplementedError
+    
+    def update_successor_on_batch(self, states, actions, phis, next_states, gammas, policy_index):
+        """
+        Updates the successor representation by training it on a batch of given transitions 
+        in an off-policy manner.
+        
+        Parameters
+        ----------
+        states : array-like
+            the states of the MDP
+        actions : array-like
+            the actions taken in the states
+        phis : array-like
+            the batch of state features where rows correspond to states
+        next_states : array-like
+            the next states of the MDP
+        gamma : array-like
+            the discount factors in each state
         policy_index : integer
             the index of the task whose successor features to update
         """
@@ -180,7 +197,7 @@ class SF:
             raise Exception('sampled reward {} != linear reward {} - please check task {}!'.format(
                 r, r_true, task_index))
         
-    def GPE(self, state_batch, policy_index, task_index):
+    def GPE(self, state, policy_index, task_index):
         """
         Implements generalized policy evaluation according to [1]. In summary, this uses the
         learned reward parameters of one task and successor features of a policy to estimate the Q-values of 
@@ -188,7 +205,7 @@ class SF:
         
         Parameters
         ----------
-        state_batch : object
+        state : object
             a state or collection of states of the MDP
         policy_index : integer
             the index of the task whose policy to evaluate
@@ -201,18 +218,18 @@ class SF:
             n_batch is the number of states in the state argument
             n_actions is the number of actions in the MDP            
         """
-        psi = self.get_successor(state_batch, policy_index)
+        psi = self.get_successor(state, policy_index)
         w = self.fit_w[task_index]
         q = psi @ w  # shape (n_batch, n_actions)
         return q
     
-    def GPI(self, state_batch, task_index, update_counters=False):
+    def GPI(self, state, task_index, update_counters=False):
         """
         Implements generalized policy improvement according to [1]. 
         
         Parameters
         ----------
-        state_batch : object
+        state : object
             a state or collection of states of the MDP
         task_index : integer
             the index of the task in which the GPI action will be used
@@ -222,9 +239,13 @@ class SF:
         Returns
         -------
         np.ndarray : the maximum Q-values computed by GPI for selecting actions
+        of shape [n_batch, n_tasks, n_actions], where:
+            n_batch is the number of states in the state argument
+            n_tasks is the number of tasks
+            n_actions is the number of actions in the MDP 
         np.ndarray : the tasks that are active in each state of state_batch in GPi
         """
-        psi = self.get_successors(state_batch)
+        psi = self.get_successors(state)
         w = self.fit_w[task_index]
         q = (psi @ w)[:,:,:, 0]  # shape (n_batch, n_tasks, n_actions)
         task = np.squeeze(np.argmax(np.max(q, axis=2), axis=1))  # shape (n_batch,)

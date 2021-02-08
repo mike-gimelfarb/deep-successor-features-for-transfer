@@ -41,6 +41,7 @@ class SFQL:
             whether or not to implement policy transfer using GPI according to [1], 
             or to simply train each task separately without transfer
         """
+        
         self.sf = sf
         self.gamma = gamma
         self.epsilon_init = epsilon
@@ -102,6 +103,7 @@ class SFQL:
         task_index : integer
             the task at the specified index is set to active; if None, this is the most recently-added task
         """
+        
         if task_index is None:
             task_index = self.n_tasks - 1
         self.task_index = task_index
@@ -127,6 +129,7 @@ class SFQL:
         -------
         integer : the action sampled from the epsilon-greedy policy
         """
+        
         assert q.size == self.n_actions
         
         # sample from a Bernoulli distribution with parameter epsilon
@@ -212,7 +215,26 @@ class SFQL:
             reward_str = 'ep_reward \t {:.5f} \t cum_reward \t {:.5f}'.format(
                 self.episode_reward, self.reward)
             gpi_percent = self.sf.GPI_usage_percent(self.task_index)
-            w_error = np.linalg.norm(self.sf.fit_w[-1] - self.sf.true_w[-1])
+            w_error = np.linalg.norm(self.sf.fit_w[self.task_index] - self.sf.true_w[self.task_index])
             gpi_str = 'GPI% \t {:.5f} \t w_err \t {:.5f}'.format(gpi_percent, w_error)
             print(sample_str + '\t' + reward_str + '\t' + gpi_str)
+            
+    def train(self, tasks, n_samples):
+        """
+        Executes the entire training pipeline for a fixed set of tasks.
+        
+        Parameters
+        ----------
+        tasks : iterable of Task
+            a sequence of tasks to learn successor features for
+        n_samples : integer
+            the number of samples to collect from each task during training
+        """
+        
+        self.reset()
+        for task in tasks:
+            self.add_task(task)
+            self.set_active_task()
+            for _ in range(n_samples):
+                self.next_sample()
             

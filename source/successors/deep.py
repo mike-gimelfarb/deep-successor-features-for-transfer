@@ -90,25 +90,6 @@ class DeepSF(SF):
             self.updates_since_target_updated[policy_index] = 0
 
     def update_successor_on_batch(self, states, actions, phis, next_states, gammas, policy_index):
-        """
-        Updates the successor representation by training it on a batch of given transitions 
-        in an off-policy manner.
-        
-        Parameters
-        ----------
-        states : np.ndarray
-            the states of the MDP
-        actions : array-like
-            the actions taken in the states
-        phis : np.ndarray
-            the batch of state features where rows correspond to states
-        next_states : np.ndarray
-            the next states of the MDP
-        gamma : np.ndarray
-            the discount factors in each state
-        policy_index : integer
-            the index of the task whose successor features to update
-        """
         
         # next actions come from GPI
         q, _ = self.GPI(states, policy_index)

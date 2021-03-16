@@ -1,24 +1,26 @@
+# -*- coding: UTF-8 -*-
 import numpy as np
 
 
 class SF:
     
-    
-    def __init__(self, alpha_w, use_true_reward=False):
+    def __init__(self, learning_rate_w, *args, use_true_reward=False, **kwargs):
         """
         Creates a new abstract successor feature representation.
         
         Parameters
         ----------
-        alpha_w : float
+        learning_rate_w : float
             the learning rate to use for learning the reward weights using gradient descent
         use_true_reward : boolean
             whether or not to use the true reward weights from the environment, or learn them
             using gradient descent
         """
-        self.alpha_w = alpha_w
+        self.alpha_w = learning_rate_w
         self.use_true_reward = use_true_reward
-    
+        if len(args) != 0 or len(kwargs) != 0:
+            print(self.__class__.__name__ + ' ignoring parameters ' + str(args) + ' and ' + str(kwargs))
+            
     def build_successor(self, task, source=None):
         """
         Builds a new successor feature map for the specified task. This method should not be called directly.
@@ -80,51 +82,19 @@ class SF:
         """
         raise NotImplementedError
     
-    def update_successor(self, state, action, phi, next_state, next_action, gamma, policy_index):
+    def update_successor(self, transitions, policy_index):
         """
-        Updates the succeesor representation by training it on the given transition.
+        Updates the successor representation by training it on the given transition.
         
         Parameters
         ----------
-        state : object
-            the state of the MDP
-        action : integer
-            the action taken in the state
-        phi : np.ndarray
-            the state features
-        next_state : object
-            the next state of the MDP
-        next_action : integer
-            the action taken in the next_state
-        gamma : float
-            the discount factor
+        transitions : object
+            collection of transitions
         policy_index : integer
             the index of the task whose successor features to update
         """
         raise NotImplementedError
-    
-    def update_successor_on_batch(self, states, actions, phis, next_states, gammas, policy_index):
-        """
-        Updates the successor representation by training it on a batch of given transitions 
-        in an off-policy manner.
         
-        Parameters
-        ----------
-        states : array-like
-            the states of the MDP
-        actions : array-like
-            the actions taken in the states
-        phis : array-like
-            the batch of state features where rows correspond to states
-        next_states : array-like
-            the next states of the MDP
-        gamma : array-like
-            the discount factors in each state
-        policy_index : integer
-            the index of the task whose successor features to update
-        """
-        raise NotImplementedError
-    
     def reset(self):
         """
         Removes all trained successor feature representations from the current object, all learned rewards,
@@ -134,11 +104,9 @@ class SF:
         self.psi = []
         self.true_w = []
         self.fit_w = []
-        
-        # statistics
         self.gpi_counters = []
 
-    def add_task(self, task, source=None):
+    def add_training_task(self, task, source=None):
         """
         Adds a successor feature representation for the specified task.
         
@@ -183,6 +151,8 @@ class SF:
             the observed reward from the MDP
         task_index : integer
             the index of the task from which this reward was sampled
+        exact : boolean
+            if True, validates the true reward from the environment and the linear representation
         """
         
         # update reward using linear regression
@@ -193,9 +163,34 @@ class SF:
     
         # validate reward
         r_true = np.sum(phi * self.true_w[task_index])
-        if r != r_true and exact:
+        if exact and not np.allclose(r, r_true):
             raise Exception('sampled reward {} != linear reward {} - please check task {}!'.format(
                 r, r_true, task_index))
+    
+    def GPE_w(self, state, policy_index, w):
+        """
+        Implements generalized policy evaluation according to [1]. In summary, this uses the
+        learned reward parameters of one task and successor features of a policy to estimate the Q-values of 
+        the policy if it were executed in that task.
+        
+        Parameters
+        ----------
+        state : object
+            a state or collection of states of the MDP
+        policy_index : integer
+            the index of the task whose policy to evaluate
+        w : numpy array
+            reward parameters of the task in which to evaluate the policy
+            
+        Returns
+        -------
+        np.ndarray : the estimated Q-values of shape [n_batch, n_actions], where
+            n_batch is the number of states in the state argument
+            n_actions is the number of actions in the MDP            
+        """
+        psi = self.get_successor(state, policy_index)
+        q = psi @ w  # shape (n_batch, n_actions)
+        return q
         
     def GPE(self, state, policy_index, task_index):
         """
@@ -218,10 +213,32 @@ class SF:
             n_batch is the number of states in the state argument
             n_actions is the number of actions in the MDP            
         """
-        psi = self.get_successor(state, policy_index)
-        w = self.fit_w[task_index]
-        q = psi @ w  # shape (n_batch, n_actions)
-        return q
+        return self.GPE_w(state, policy_index, self.fit_w[task_index])
+    
+    def GPI_w(self, state, w):
+        """
+        Implements generalized policy improvement according to [1]. 
+        
+        Parameters
+        ----------
+        state : object
+            a state or collection of states of the MDP
+        w : numpy array
+            the reward parameters of the task to control
+        
+        Returns
+        -------
+        np.ndarray : the maximum Q-values computed by GPI for selecting actions
+        of shape [n_batch, n_tasks, n_actions], where:
+            n_batch is the number of states in the state argument
+            n_tasks is the number of tasks
+            n_actions is the number of actions in the MDP 
+        np.ndarray : the tasks that are active in each state of state_batch in GPi
+        """
+        psi = self.get_successors(state)
+        q = (psi @ w)[:,:,:, 0]  # shape (n_batch, n_tasks, n_actions)
+        task = np.squeeze(np.argmax(np.max(q, axis=2), axis=1))  # shape (n_batch,)
+        return q, task
     
     def GPI(self, state, task_index, update_counters=False):
         """
@@ -245,10 +262,7 @@ class SF:
             n_actions is the number of actions in the MDP 
         np.ndarray : the tasks that are active in each state of state_batch in GPi
         """
-        psi = self.get_successors(state)
-        w = self.fit_w[task_index]
-        q = (psi @ w)[:,:,:, 0]  # shape (n_batch, n_tasks, n_actions)
-        task = np.squeeze(np.argmax(np.max(q, axis=2), axis=1))  # shape (n_batch,)
+        q, task = self.GPI_w(state, self.fit_w[task_index])
         if update_counters:
             self.gpi_counters[task_index][task] += 1
         return q, task

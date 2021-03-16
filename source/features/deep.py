@@ -1,9 +1,9 @@
+# -*- coding: UTF-8 -*-
 import numpy as np
-
 from tensorflow.keras import backend as K, Model
 from tensorflow.keras.layers import concatenate, Input, Lambda
 
-from successors.successor import SF
+from features.successor import SF
 
 
 class DeepSF(SF):
@@ -37,28 +37,29 @@ class DeepSF(SF):
         
     def build_successor(self, task, source=None):
         
-        # input tensor
+        # input tensor for all networks is shared
         if self.n_tasks == 0:
-            n_states = task.encode_dim()
-            self.inputs = Input(shape=(n_states,))
-            self.all_outputs = None
+            self.n_actions = task.action_count()
+            self.n_features = task.feature_dim()
+            self.inputs = Input(shape=(task.encode_dim(),))
             
-        # build new model in keras and copy its weights if needed
+        # build SF network and copy its weights from previous task
         # output shape is assumed to be [n_batch, n_actions, n_features]
         model = self.keras_model_handle(self.inputs)
         if source is not None and self.n_tasks > 0:
-            model.set_weights(self.psi[source].get_weights())
+            source_psi, _ = self.psi[source]
+            model.set_weights(source_psi.get_weights())
         
         # append predictions of all SF networks across tasks to allow fast prediction
         expand_output = Lambda(lambda x: K.expand_dims(x, axis=1))(model.output)
-        if self.all_outputs is None:
+        if self.n_tasks == 0:
             self.all_outputs = expand_output
         else:
             self.all_outputs = concatenate([self.all_outputs, expand_output], axis=1)
         self.all_output_model = Model(inputs=self.inputs, outputs=self.all_outputs)
         self.all_output_model.compile('sgd', 'mse')  # dummy compile so Keras doesn't complain
         
-        # build target models and copy their weights 
+        # build target model and copy the weights 
         target_model = self.keras_model_handle(self.inputs)
         target_model.set_weights(model.get_weights())
         self.updates_since_target_updated.append(0)
@@ -72,16 +73,26 @@ class DeepSF(SF):
     def get_successors(self, state):
         return self.all_output_model.predict(state)
     
-    def update_successor(self, state, action, phi, next_state, next_action, gamma, policy_index):
+    def update_successor(self, transitions, policy_index):
+        if transitions is None:
+            return
+        states, actions, phis, next_states, gammas = transitions
+        n_batch = len(gammas)
+        indices = np.arange(n_batch)
+        gammas = gammas.reshape((-1, 1))
+         
+        # next actions come from GPI
+        q1, _ = self.GPI(next_states, policy_index)
+        next_actions = np.argmax(np.max(q1, axis=1), axis=-1)
         
-        # compute target
+        # compute the targets and TD errors
         psi, target_psi = self.psi[policy_index]
-        targets = phi.flatten() + gamma * target_psi.predict(next_state)[0, next_action,:]
+        current_psi = psi.predict(states)
+        targets = phis + gammas * target_psi.predict(next_states)[indices, next_actions,:]
         
         # train the SF network
-        labels = psi.predict(state)
-        labels[0, action,:] = targets
-        psi.fit(state, labels, verbose=False)
+        current_psi[indices, actions,:] = targets
+        psi.fit(states, current_psi, verbose=False, batch_size=n_batch)
         
         # update the target SF network
         self.updates_since_target_updated[policy_index] += 1
@@ -89,25 +100,3 @@ class DeepSF(SF):
             target_psi.set_weights(psi.get_weights())
             self.updates_since_target_updated[policy_index] = 0
 
-    def update_successor_on_batch(self, states, actions, phis, next_states, gammas, policy_index):
-        
-        # next actions come from GPI
-        q, _ = self.GPI(next_states, policy_index)
-        next_actions = np.argmax(np.max(q, axis=1), axis=-1)
-         
-        # compute targets
-        psi, target_psi = self.psi[policy_index]
-        indices = np.arange(next_actions.size)
-        targets = phis + gammas.reshape((-1, 1)) * target_psi.predict(next_states)[indices, next_actions,:]
-        
-        # train the SF network
-        labels = psi.predict(states)
-        labels[indices, actions,:] = targets
-        psi.fit(states, labels, verbose=False, batch_size=next_actions.size)
-         
-        # update the target SF network
-        self.updates_since_target_updated[policy_index] += 1
-        if self.updates_since_target_updated[policy_index] >= self.target_update_ev:
-            target_psi.set_weights(psi.get_weights())
-            self.updates_since_target_updated[policy_index] = 0
-        

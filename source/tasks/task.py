@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 class Task:
     """
     An abstract representation of an MDP with arbitrary state space and finite action space.

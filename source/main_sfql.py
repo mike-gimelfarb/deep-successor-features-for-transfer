@@ -1,114 +1,80 @@
+# -*- coding: UTF-8 -*-
 import numpy as np
+import matplotlib.pyplot as plt
 
-from successors.tabular import TabularSF
+from agents.sfql import SFQL
+from agents.ql import QL
+from features.tabular import TabularSF
 from tasks.gridworld import Shapes
-from training.sfql import SFQL 
-from training.ql import TabularQ 
+from utils.config import parse_config_file
+from utils.stats import OnlineMeanVariance
 
-# task layout
-maze = np.array([
-    ['1', ' ', ' ', ' ', ' ', '2', 'X', ' ', ' ', ' ', ' ', ' ', 'G'],
-    [' ', ' ', ' ', ' ', ' ', ' ', 'X', ' ', ' ', ' ', ' ', ' ', ' '],
-    [' ', ' ', ' ', ' ', ' ', ' ', '1', ' ', ' ', ' ', ' ', ' ', ' '],
-    [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
-    [' ', ' ', ' ', ' ', ' ', ' ', 'X', ' ', ' ', ' ', ' ', ' ', ' '],
-    ['2', ' ', ' ', ' ', ' ', '3', 'X', ' ', ' ', ' ', ' ', ' ', ' '],
-    ['X', 'X', '3', ' ', 'X', 'X', 'X', 'X', 'X', ' ', '1', 'X', 'X'],
-    [' ', ' ', ' ', ' ', ' ', ' ', 'X', '2', ' ', ' ', ' ', ' ', '3'],
-    [' ', ' ', ' ', ' ', ' ', ' ', 'X', ' ', ' ', ' ', ' ', ' ', ' '],
-    [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
-    [' ', ' ', ' ', ' ', ' ', ' ', '2', ' ', ' ', ' ', ' ', ' ', ' '],
-    [' ', ' ', ' ', ' ', ' ', ' ', 'X', ' ', ' ', ' ', ' ', ' ', ' '],
-    ['_', ' ', ' ', ' ', ' ', ' ', 'X', '3', ' ', ' ', ' ', ' ', '1']
-])
+# general training params
+config_params = parse_config_file('gridworld.cfg')
+gen_params = config_params['GENERAL']
+task_params = config_params['TASK']
+agent_params = config_params['AGENT']
+sfql_params = config_params['SFQL']
+ql_params = config_params['QL']
 
-# training params for the SF
-sf_params = {
-    'alpha': 0.5,
-    'alpha_w': 0.5,
-    'use_true_reward': False
-}
 
-# training params for SFQL
-params = {
-    'gamma': 0.95,
-    'epsilon': 0.15,
-    'T': 200,
-    'print_ev': 1000,
-    'save_ev': 100,
-    'encoding': lambda s: s
-}
-
-# training params for Q
-params_q = {
-    'alpha': 0.75
-}
-
-# training params for the overall experiment
-n_samples = 20000
-n_tasks = 25
-n_trials = 20
+# tasks
+def generate_task():
+    rewards = dict(zip(['1', '2', '3'], list(np.random.uniform(low=-1.0, high=1.0, size=3))))
+    return Shapes(maze=np.array(task_params['maze']), shape_rewards=rewards)
+ 
 
 # agents
-sfql = SFQL(TabularSF(**sf_params), use_gpi=True, **params)
-q = TabularQ(**params_q, **params)
- 
+sfql = SFQL(TabularSF(**sfql_params), **agent_params) 
+ql = QL(**agent_params, **ql_params)
+agents = [sfql, ql]
+names = ['SFQL', 'QLearning']
+
 # train
-avg_data_sfql, cum_data_sfql = 0., 0.
-avg_data_q, cum_data_q = 0., 0.
+data_task_return = [OnlineMeanVariance() for _ in agents]
+n_trials = gen_params['n_trials']
+n_samples = gen_params['n_samples']
+n_tasks = gen_params['n_tasks']
+for trial in range(n_trials):
+    
+    # train each agent on a set of tasks
+    for agent in agents:
+        agent.reset()
+    for t in range(n_tasks):
+        task = generate_task()
+        for agent, name in zip(agents, names):
+            print('\ntrial {}, solving with {}'.format(trial, name))
+            agent.train_on_task(task, n_samples)
+             
+    # update performance statistics 
+    for i, agent in enumerate(agents):
+        data_task_return[i].update(agent.reward_hist)
 
-for _ in range(n_trials):
-    
-    # prepare for the next trial
-    sfql.reset()
-    q.reset()
-    
-    # next trial
-    for _ in range(n_tasks):
-        
-        # define new task
-        rewards = dict(zip(['1', '2', '3'], list(np.random.uniform(low=-1.0, high=1.0, size=3))))
-        task = Shapes(maze, rewards)
-        
-        # solve the task with sfql
-        print('\nsolving with SFQL')
-        sfql.add_task(task)
-        sfql.set_active_task()
-        for _ in range(n_samples):
-            sfql.next_sample()
-        
-        # solve the same task with q
-        print('\nsolving with QL')
-        q.next_task(task)
-        for _ in range(n_samples):
-            q.next_sample()
-    
-    # update performance statistics
-    avg_data_sfql = avg_data_sfql + np.array(sfql.reward_hist) / float(n_trials)
-    cum_data_sfql = cum_data_sfql + np.array(sfql.cum_reward_hist) / float(n_trials)
-    avg_data_q = avg_data_q + np.array(q.reward_hist) / float(n_trials)
-    cum_data_q = cum_data_q + np.array(q.cum_reward_hist) / float(n_trials)
+# plot the task return
+ticksize = 14
+textsize = 18
+figsize = (20, 10)
 
-# plot the cumulative return per trial, averaged 
-import matplotlib.pyplot as plt
-plt.figure(figsize=(10, 5))
-plt.plot(avg_data_sfql, label='SFQL')
-plt.plot(avg_data_q, label='Q')
-plt.xlabel('samples')
+plt.rc('font', size=textsize)  # controls default text sizes
+plt.rc('axes', titlesize=textsize)  # fontsize of the axes title
+plt.rc('axes', labelsize=textsize)  # fontsize of the x and y labels
+plt.rc('xtick', labelsize=ticksize)  # fontsize of the tick labels
+plt.rc('ytick', labelsize=ticksize)  # fontsize of the tick labels
+plt.rc('legend', fontsize=ticksize)  # legend fontsize
+
+plt.figure(figsize=(12, 6))
+ax = plt.gca()
+for i, name in enumerate(names):
+    mean = data_task_return[i].mean
+    n_sample_per_tick = n_samples * n_tasks // mean.size
+    x = np.arange(mean.size) * n_sample_per_tick
+    se = data_task_return[i].calculate_standard_error()
+    plt.plot(x, mean, label=name)
+    ax.fill_between(x, mean - se, mean + se, alpha=0.3)
+plt.xlabel('sample')
 plt.ylabel('cumulative reward')
-plt.legend()
 plt.title('Cumulative Training Reward Per Task')
-plt.savefig('figures/sfql_cumulative_return_per_task.png')
-plt.show()
-
-# plot the gross cumulative return, averaged
-plt.clf()
-plt.figure(figsize=(5, 5))
-plt.plot(cum_data_sfql, label='SFQl')
-plt.plot(cum_data_q, label='Q')
-plt.xlabel('samples')
-plt.ylabel('cumulative reward')
-plt.legend()
-plt.title('Total Cumulative Training Reward')
-plt.savefig('figures/sfql_cumulative_return_total.png')
+plt.tight_layout()
+plt.legend(ncol=2, frameon=False)
+plt.savefig('figures/sfql_return.png')
 plt.show()

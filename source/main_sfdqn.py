@@ -1,81 +1,111 @@
+# -*- coding: UTF-8 -*-
 import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-import numpy as np
-
+import matplotlib.pyplot as plt    
 import tensorflow as tf
+from tensorflow.keras import layers, Model, optimizers
 tf.compat.v1.disable_v2_behavior()
-from tensorflow.keras import layers, Model, optimizers 
 
-from successors.deep import DeepSF
-from tasks.pinball import Pinball, PinballView
-from training.replay import ReplayBuffer
-from training.sfdqn import SFDQN
+from agents.dqn import DQN
+from agents.sfdqn import SFDQN
+from agents.buffer import ReplayBuffer
+from features.deep import DeepSF
+from tasks.reacher import Reacher
+from utils.config import parse_config_file
+
+# general training params
+config_params = parse_config_file('reacher.cfg')
+gen_params = config_params['GENERAL']
+task_params = config_params['TASK']
+agent_params = config_params['AGENT']
+dqn_params = config_params['DQN']
+sfdqn_params = config_params['SFDQN']
+goals = task_params['train_targets']
+test_goals = task_params['test_targets']
+
 
 # tasks
-goals = [(0.45, 0.3), (0.2, 0.2), (0.75, 0.4), (0.82, 0.08), (0.5, 0.05)]
-tasks = [Pinball('tasks/pinball.cfg', goals, i) for i in range(len(goals))]
-viewers = [None for task in tasks]
+def generate_tasks():
+    all_goals = goals + test_goals
+    train_tasks = [Reacher(all_goals, index) for index in range(len(goals))]
+    test_tasks = [Reacher(all_goals, index + len(goals)) for index in range(len(test_goals))]
+    return train_tasks, test_tasks
 
-# training params for the SF
-sf_params = {
-    'alpha_w': 0.5,
-    'use_true_reward': True
-}
 
-# keras model for the SF
-def psi_model_lambda(x):
-    actions = 5
-    features = len(tasks)
-    y = layers.Dense(100, activation='relu')(x)
-    y = layers.Dense(100, activation='relu')(y)
-    y = layers.Dense(actions * features)(y)
-    y = layers.Reshape((actions, features))(y)
+# keras model
+def dqn_model_lambda():
+    keras_params = dqn_params['keras_params']
+    x = y = layers.Input(keras_params['n_states'])
+    for n_neurons, activation in zip(keras_params['n_neurons'], keras_params['activations']):
+        y = layers.Dense(n_neurons,
+                         activation=activation)(y)
+    y = layers.Dense(keras_params['n_actions'],
+                     activation='linear')(y)
     model = Model(inputs=x, outputs=y)
-    model.compile(optimizers.Adam(0.001), 'mse')
+    sgd = optimizers.Adam(learning_rate=keras_params['learning_rate'])
+    model.compile(sgd, 'mse')
     return model
 
 
-# training parameters for experience replay
-buffer_params = {
-    'n_samples': 200000,
-    'n_batch': 32
-}
+# keras model for the SF
+def sf_model_lambda(x):
+    n_features = len(goals) + len(test_goals)
+    keras_params = sfdqn_params['keras_params']
+    y = x
+    for n_neurons, activation in zip(keras_params['n_neurons'], keras_params['activations']):
+        y = layers.Dense(n_neurons,
+                         activation=activation)(y)
+    y = layers.Dense(keras_params['n_actions'] * n_features,
+                     activation='linear')(y)
+    y = layers.Reshape((keras_params['n_actions'], n_features))(y)
+    model = Model(inputs=x, outputs=y)
+    sgd = optimizers.Adam(learning_rate=keras_params['learning_rate'])
+    model.compile(sgd, 'mse')
+    return model
 
-# training params for SFDQN
-params = {
-    'gamma': 0.96,
-    'epsilon': 0.1,
-    'T': 600,
-    'print_ev': 1000,
-    'save_ev': 200,
-    'view_ev' : 10,
-    'encoding': 'task'
-}
 
-# training params for the overall experiment
-n_samples = 50000
-n_trials = 1
+deep_sf = DeepSF(keras_model_handle=sf_model_lambda, **sfdqn_params)
+sfdqn = SFDQN(deep_sf=deep_sf,
+              buffer=ReplayBuffer(agent_params['buffer_params']),
+              **sfdqn_params, **agent_params)
+# dqn = DQN(model_lambda=dqn_model_lambda,
+#           buffer=ReplayBuffer(agent_params['buffer_params']),
+#           **dqn_params, **agent_params)
+agents = [sfdqn]
+names = ['SFDQN']
 
-# agents
-sfdqn = SFDQN(DeepSF(psi_model_lambda, **sf_params), ReplayBuffer(**buffer_params), **params)
- 
-# train
-cum_data_sfdqn = 0.
+# training params for experiment 
+n_samples = gen_params['n_samples']
+n_trials = gen_params['n_trials']
 for _ in range(n_trials):
     
-    # train agent
-    sfdqn.train(tasks, n_samples, viewers=viewers)
-    
-    # update performance statistics
-    cum_data_sfdqn = cum_data_sfdqn + np.array(sfdqn.reward_hist) / float(n_trials)
+    # train each agent on a set of tasks
+    train_tasks, test_tasks = generate_tasks()
+    perfs = []
+    for agent, name in zip(agents, names):
+        print('\nsolving with {}'.format(name))
+        perf = agent.train(train_tasks, n_samples, test_tasks=test_tasks)
+        perfs.append(perf)
 
-# plot the cumulative return per trial, averaged 
-import matplotlib.pyplot as plt
-plt.figure(figsize=(5, 5))
-plt.plot(cum_data_sfdqn, label='SFDQN')
-plt.xlabel('samples')
-plt.ylabel('cumulative reward')
-plt.legend()
-plt.title('Cumulative Training Reward Per Task')
-plt.savefig('figures/sfdqn_cumulative_return.png')
+# plot the task return
+ticksize = 14
+textsize = 18
+figsize = (20, 10)
+
+plt.rc('font', size=textsize)  # controls default text sizes
+plt.rc('axes', titlesize=textsize)  # fontsize of the axes title
+plt.rc('axes', labelsize=textsize)  # fontsize of the x and y labels
+plt.rc('xtick', labelsize=ticksize)  # fontsize of the tick labels
+plt.rc('ytick', labelsize=ticksize)  # fontsize of the tick labels
+plt.rc('legend', fontsize=ticksize)  # legend fontsize
+
+plt.figure(figsize=(12, 6))
+ax = plt.gca()
+for name, perf in zip(names, perfs):
+    plt.plot(perf, label=name)
+plt.legend(frameon=False)
+plt.xlabel('sample')
+plt.ylabel('test reward')
+plt.title('Test Reward - Reacher Domain')
+plt.tight_layout()
 plt.show()

@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 import numpy as np
 import random
 
@@ -12,7 +13,7 @@ class Shapes(Task):
     
     References
     ----------
-    [1] Barreto, André, et al. "Successor Features for Transfer in Reinforcement Learning." NIPS. 2017.
+    [1] Barreto, Andrï¿½, et al. "Successor Features for Transfer in Reinforcement Learning." NIPS. 2017.
     """
 
     LEFT, UP, RIGHT, DOWN = 0, 1, 2, 3

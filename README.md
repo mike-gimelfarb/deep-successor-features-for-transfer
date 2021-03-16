@@ -12,7 +12,7 @@ Currently supports:
 # Requirements
 - python 3.8 or later
 - tensorflow 2.3 or later
-- pygame 2.0.1. or later (for some environments)
+- pybullet 3.0.8 and pybullet-gym 0.1 (for reacher domain)
 
 # References
 [1] Barreto, André, et al. "Successor features for transfer in reinforcement learning." Advances in neural information processing systems. 2017.

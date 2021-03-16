@@ -92,7 +92,7 @@ class DeepSF(SF):
     def update_successor_on_batch(self, states, actions, phis, next_states, gammas, policy_index):
         
         # next actions come from GPI
-        q, _ = self.GPI(states, policy_index)
+        q, _ = self.GPI(next_states, policy_index)
         next_actions = np.argmax(np.max(q, axis=1), axis=-1)
          
         # compute targets

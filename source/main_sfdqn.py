@@ -14,7 +14,7 @@ from training.sfdqn import SFDQN
 # tasks
 goals = [(0.45, 0.3), (0.2, 0.2), (0.75, 0.4), (0.82, 0.08), (0.5, 0.05)]
 tasks = [Pinball('tasks/pinball.cfg', goals, i) for i in range(len(goals))]
-viewers = [PinballView(task) for task in tasks]
+viewers = [None for task in tasks]
 
 # training params for the SF
 sf_params = {

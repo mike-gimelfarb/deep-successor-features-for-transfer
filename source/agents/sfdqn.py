@@ -8,6 +8,21 @@ from agents.agent import Agent
 class SFDQN(Agent):
     
     def __init__(self, deep_sf, buffer, *args, use_gpi=True, test_epsilon=0.03, **kwargs):
+        """
+        Creates a new SFDQN agent per the specifications in the original paper.
+        
+        Parameters
+        ----------
+        deep_sf : DeepSF
+            instance of deep successor feature representation
+         buffer : ReplayBuffer
+            a replay buffer that implements randomized experience replay
+        use_gpi : boolean
+            whether or not to use transfer learning (defaults to True)
+        test_epsilon : float
+            the exploration parameter for epsilon greedy used during testing 
+            (defaults to 0.03 as in the paper)
+        """
         super(SFDQN, self).__init__(*args, **kwargs)
         self.sf = deep_sf
         self.buffer = buffer

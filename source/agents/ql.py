@@ -8,6 +8,14 @@ from agents.agent import Agent
 class QL(Agent):
     
     def __init__(self, learning_rate, *args, **kwargs):
+        """
+        Creates a new tabular Q-learning agent.
+        
+        Parameters
+        ----------
+        learning_rate : float
+            the learning rate to use in order to update Q-values
+        """
         super(QL, self).__init__(*args, **kwargs)
         self.alpha = learning_rate
         

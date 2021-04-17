@@ -1,7 +1,13 @@
 # successor-features-for-transfer
 A reusable framework and independent implementation for successor features (SF) for transfer in (deep) reinforcement learning using keras, based on [1].
 
+Tabular setting:
+
 ![](https://github.com/mike-gimelfarb/successor-features-for-transfer/blob/main/source/figures/sfql_return.png)
+
+Deep learning setting:
+
+![](https://github.com/mike-gimelfarb/successor-features-for-transfer/blob/main/source/figures/sfdqn_return.png)
 
 Currently supports:
 - tabular SF representations for discrete environments, based on an efficient hash table representation

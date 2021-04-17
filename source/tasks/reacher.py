@@ -9,10 +9,11 @@ from tasks.task import Task
 
 class Reacher(Task):
     
-    def __init__(self, target_positions, task_index):
+    def __init__(self, target_positions, task_index, include_target_in_state=False):
         self.target_positions = target_positions
         self.task_index = task_index
         self.target_pos = target_positions[task_index]
+        self.include_target_in_state = include_target_in_state
         self.env = ReacherBulletEnv(self.target_pos)
         
         # make the action lookup from integer to real action
@@ -23,12 +24,16 @@ class Reacher(Task):
                 self.action_dict[len(self.action_dict)] = (a1, a2)
         
     def clone(self):
-        return Reacher(self.target_positions, self.task_index)
+        return Reacher(self.target_positions, self.task_index, self.include_target_in_state)
     
     def initialize(self):
         # if self.task_index == 0:
         #    self.env.render('human')
-        return self.env.reset()
+        state = self.env.reset()
+        if self.include_target_in_state:
+            return np.concatenate([state.flatten(), self.target_pos])
+        else:
+            return state
     
     def action_count(self):
         return len(self.action_dict)
@@ -36,7 +41,13 @@ class Reacher(Task):
     def transition(self, action):
         real_action = self.action_dict[action]
         new_state, reward, done, _ = self.env.step(real_action)
-        return new_state, reward, done
+        
+        if self.include_target_in_state:
+            return_state = np.concatenate([new_state, self.target_pos])
+        else:
+            return_state = new_state
+            
+        return return_state, reward, done
     
     # ===========================================================================
     # STATE ENCODING FOR DEEP LEARNING
@@ -45,7 +56,10 @@ class Reacher(Task):
         return np.array(state).reshape((1, -1))
     
     def encode_dim(self):
-        return 4
+        if self.include_target_in_state:
+            return 6
+        else:
+            return 4
     
     # ===========================================================================
     # SUCCESSOR FEATURES
@@ -54,7 +68,7 @@ class Reacher(Task):
         phi = np.zeros((len(self.target_positions),))
         for index, target in enumerate(self.target_positions):
             delta = np.linalg.norm(np.array(self.env.robot.fingertip.pose().xyz()[:2]) - np.array(target))
-            phi[index] = 1. - 2. * delta
+            phi[index] = 1. - 4. * delta
         return phi
     
     def feature_dim(self):
@@ -84,7 +98,7 @@ class ReacherBulletEnv(BaseBulletEnv):
         
         delta = np.linalg.norm(
             np.array(self.robot.fingertip.pose().xyz()) - np.array(self.robot.target.pose().xyz()))
-        reward = 1. - 2. * delta
+        reward = 1. - 4. * delta
         self.HUD(state, a, False)
         
         return state, reward, False, {}

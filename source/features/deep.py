@@ -68,10 +68,10 @@ class DeepSF(SF):
         
     def get_successor(self, state, policy_index):
         psi, _ = self.psi[policy_index]
-        return psi.predict(state)
+        return psi.predict_on_batch(state)
     
     def get_successors(self, state):
-        return self.all_output_model.predict(state)
+        return self.all_output_model.predict_on_batch(state)
     
     def update_successor(self, transitions, policy_index):
         if transitions is None:
@@ -87,12 +87,12 @@ class DeepSF(SF):
         
         # compute the targets and TD errors
         psi, target_psi = self.psi[policy_index]
-        current_psi = psi.predict(states)
-        targets = phis + gammas * target_psi.predict(next_states)[indices, next_actions,:]
+        current_psi = psi.predict_on_batch(states)
+        targets = phis + gammas * target_psi.predict_on_batch(next_states)[indices, next_actions,:]
         
         # train the SF network
         current_psi[indices, actions,:] = targets
-        psi.fit(states, current_psi, verbose=False, batch_size=n_batch)
+        psi.train_on_batch(states, current_psi)
         
         # update the target SF network
         self.updates_since_target_updated[policy_index] += 1

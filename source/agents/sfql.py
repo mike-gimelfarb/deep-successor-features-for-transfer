@@ -7,6 +7,16 @@ from agents.agent import Agent
 class SFQL(Agent):
     
     def __init__(self, lookup_table, *args, use_gpi=True, **kwargs):
+        """
+        Creates a new tabular successor feature agent.
+        
+        Parameters
+        ----------
+        lookup_table : TabularSF
+            a tabular successor feature representation
+        use_gpi : boolean
+            whether or not to use transfer learning (defaults to True)
+        """
         super(SFQL, self).__init__(*args, **kwargs)
         self.sf = lookup_table
         self.use_gpi = use_gpi

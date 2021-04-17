@@ -95,8 +95,9 @@ def train():
     def smooth(y, box_pts):
         return np.convolve(y, np.ones(box_pts) / box_pts, mode='same')
 
-    sfdqn_perf = smooth(sfdqn_perf, 10)
-    dqn_perf = smooth(dqn_perf, 10)
+    sfdqn_perf = smooth(sfdqn_perf, 10)[:-5]
+    dqn_perf = smooth(dqn_perf, 10)[:-5]
+    x = np.linspace(0, 4, sfdqn_perf.size)
     
     # reporting progress
     ticksize = 14
@@ -110,9 +111,9 @@ def train():
 
     plt.figure(figsize=(8, 6))
     ax = plt.gca()
-    ax.plot(sfdqn_perf, label='SFDQN')
-    ax.plot(dqn_perf, label='DQN')
-    plt.xlabel('sample')
+    ax.plot(x, sfdqn_perf, label='SFDQN')
+    ax.plot(x, dqn_perf, label='DQN')
+    plt.xlabel('training task index')
     plt.ylabel('averaged test episode reward')
     plt.title('Testing Reward Averaged over all Test Tasks')
     plt.tight_layout()

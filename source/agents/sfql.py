@@ -63,6 +63,6 @@ class SFQL(Agent):
         sample_str, reward_str = super(SFQL, self).get_progress_strings()
         gpi_percent = self.sf.GPI_usage_percent(self.task_index)
         w_error = np.linalg.norm(self.sf.fit_w[self.task_index] - self.sf.true_w[self.task_index])
-        gpi_str = 'GPI% \t {:.5f} \t w_err \t {:.5f}'.format(gpi_percent, w_error)
+        gpi_str = 'GPI% \t {:.4f} \t w_err \t {:.4f}'.format(gpi_percent, w_error)
         return sample_str, reward_str, gpi_str
     

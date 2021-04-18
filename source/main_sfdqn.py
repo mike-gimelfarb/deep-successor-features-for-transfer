@@ -1,6 +1,4 @@
 # -*- coding: UTF-8 -*-  
-# import os
-# os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import matplotlib.pyplot as plt
 import numpy as np
 

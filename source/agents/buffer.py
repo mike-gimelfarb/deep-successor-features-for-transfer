@@ -1,7 +1,5 @@
 # -*- coding: UTF-8 -*-
-from collections import deque
 import numpy as np
-import random
 
 
 class ReplayBuffer:
@@ -24,7 +22,7 @@ class ReplayBuffer:
         """
         Removes all samples currently stored in the buffer.
         """
-        self.buffer = [None] * self.n_samples
+        self.buffer = np.empty(self.n_samples, dtype=object)
         self.index = 0
         self.size = 0
     
@@ -47,12 +45,13 @@ class ReplayBuffer:
             a collection of discount factors to be applied in computing targets for training of shape [n_batch,]
         """
         if self.size < self.n_batch: return None
-        experiences = list(zip(*random.sample(self.buffer[:self.size], self.n_batch)))
-        states = np.vstack(experiences[0])
-        actions = np.array(experiences[1])
-        rewards = np.vstack(experiences[2])
-        next_states = np.vstack(experiences[3])
-        gammas = np.array(experiences[4])
+        indices = np.random.randint(low=0, high=self.size, size=(self.n_batch,))
+        states, actions, rewards, next_states, gammas = zip(*self.buffer[indices])
+        states = np.vstack(states)
+        actions = np.array(actions)
+        rewards = np.vstack(rewards)
+        next_states = np.vstack(next_states)
+        gammas = np.array(gammas)
         return states, actions, rewards, next_states, gammas
     
     def append(self, state, action, reward, next_state, gamma):

@@ -1,11 +1,11 @@
 # successor-features-for-transfer
 A reusable framework and independent implementation for successor features (SF) for transfer in (deep) reinforcement learning using keras, based on [1].
 
-Tabular setting:
+Discrete four-room domain:
 
 ![](https://github.com/mike-gimelfarb/successor-features-for-transfer/blob/main/source/figures/sfql_return.png)
 
-Deep learning setting:
+Deep learning for reacher domain (MuJoCo):
 
 ![](https://github.com/mike-gimelfarb/successor-features-for-transfer/blob/main/source/figures/sfdqn_return.png)
 
